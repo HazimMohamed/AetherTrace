@@ -1,0 +1,6 @@
+venv/*
+.idea
+*.qcow2
+*.iso
+*.dSYM
+.DS_STORE
