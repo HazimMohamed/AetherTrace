@@ -1,0 +1,4 @@
+altgraph==0.17.4
+capstone==5.0.6
+lief==0.16.6
+unicorn==2.1.3

@@ -3,6 +3,10 @@ from unicorn import *
 from unicorn.x86_const import *
 from lief import MachO
 
+from logger import AetherLog
+
+DEBUG_EXEC = True
+
 # Sample x86 machine code: mov eax, 0x1234; mov [0x1000], eax; ret;
 elf_file = MachO.parse('fib').take(MachO.Header.CPU_TYPE.X86_64)
 elf_text = elf_file.get_section('__text').content.tobytes()
@@ -20,7 +24,7 @@ STACK_START = (STACK_END + STACK_MAX_SIZE) & ~0xF
 
 #End of the line is a memory space that's the "caller" of the program.
 # If RIP points to anything from EoTL the program will exit.
-END_OF_THE_LINE_ADDRESS = STACK_START + 0x5000
+END_OF_THE_LINE_ADDRESS = STACK_START + (2 * STACK_MAX_SIZE)
 
 # Create emulator
 mu = Uc(UC_ARCH_X86, UC_MODE_64)
@@ -35,18 +39,25 @@ mu.mem_write(HEAP_ADDRESS, elf_text)
 mu.mem_map(STACK_END, STACK_MAX_SIZE * 2)
 
 # Setup EoTL
-mu.mem_map(END_OF_THE_LINE_ADDRESS, 0x2000)
+mu.mem_map(END_OF_THE_LINE_ADDRESS, 0x1000)
 
-# Stack grows downward so start at the top
+# Stack grows downward so start at the top. "push" a value onto the stack representing the return instruction to EoTL
 mu.mem_write(STACK_START - 0x8, END_OF_THE_LINE_ADDRESS.to_bytes(8, 'little'))
 mu.reg_write(UC_X86_REG_RSP, STACK_START - 0x8)
 # Write a recognizable value to caller RBP for debugging purposes
 mu.reg_write(UC_X86_REG_RBP, 0xDEADFED)
 
 # Hook memory accesses
-def hook_mem_access(uc, access, address, size, value, user_data):
-    access_type = "READ" if access == UC_MEM_READ else "WRITE"
-    print(f"[{access_type}] addr={hex(address)} size={hex(size)} val={hex(value)}")
+def hook_mem_access(uc, access, address, size, value, logger):
+    if DEBUG_EXEC:
+        access_type = "READ" if access == UC_MEM_READ else "WRITE"
+        print(f"[{access_type}] addr={hex(address)} size={hex(size)} val={hex(value)}")
+
+    if access_type == UC_MEM_READ:
+        logger.log_memory_read(address)
+    elif access_type == UC_MEM_WRITE:
+        logger.log_memory_write(address, value)
+
 
 # For some god forsaken reason the memory is stored BEHIND the variable it references. In other words,
 # EBP points to the byte AFTER the value it references. 
@@ -65,21 +76,35 @@ def print_stack(uc):
     for address, value in reversed(sorted(stack.items(), key=lambda a: a[0])):
         print(f"{hex(address)}: {value}")
 
-def hook_code(uc, address, size, user_data):
+def hook_code(uc, address, size, logger):
     if address >= END_OF_THE_LINE_ADDRESS:
         uc.emu_stop()
+        return
 
-    print()
-    print(f"Executing instruction at {hex(address)}, size = {size}")
-    rbp  = uc.reg_read(UC_X86_REG_RBP)
-    rsp  = uc.reg_read(UC_X86_REG_RSP)
-    print(f"RBP = {hex(rbp)}")
-    print(f"RSP = {hex(rsp)}")
-    print_stack(uc)
+    if DEBUG_EXEC:
+        print()
+        print(f"Executing instruction at {hex(address)}, size = {size}")
+        rbp  = uc.reg_read(UC_X86_REG_RBP)
+        rsp  = uc.reg_read(UC_X86_REG_RSP)
+        print(f"RBP = {hex(rbp)}")
+        print(f"RSP = {hex(rsp)}")
+        print_stack(uc)
 
+    instruction_bytes = uc.mem_read(address, size)
+    logger.log_instruction(
+        address,
+        instruction_bytes
+    )
 
-mu.hook_add(UC_HOOK_CODE, hook_code)
-mu.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, hook_mem_access)
+log = AetherLog()
+
+# These hooks need to be registered in this order. TECHNICALLY unicorn doesn't guarentee hook order, but in practice it calls them in the order 
+# they're registered. If they change this then I'll need to find a work around.
+mu.hook_add(UC_HOOK_CODE, hook_code, log)
+mu.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, hook_mem_access, log)
 
 # Run code
 mu.emu_start(HEAP_ADDRESS, HEAP_ADDRESS + len(elf_text))
+
+with open('fib.al', 'w') as f:
+    f.write(log.to_json(indent=4))

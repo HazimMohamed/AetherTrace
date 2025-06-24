@@ -121,4 +121,34 @@ Okay so I learned I was operating under false assumptions of what `RSP` actually
 
 So for my logging convention I'm going to have:
 
+```
 [highest memory address associated with that 8 byte chunk]: [8 bytes written in big endian because I find it easier to read]
+```
+
+Okay. Now I'm tasked with outputting all this data in a format where I can start to play with possible visualizations. Of course I could just store it in a datastructure but I want a little more persistence and readabiity than that so writing to HDD seems appropriate. I want the format to be vaguely human readable, but also still easy to parse by a machine. It's essentially going to be a series of time frames, which increment per instruction. 
+
+I'm thinking of using JSON, but how big can I realistically make a JSON? ChatGPT claimed around 100MB = 1 million lines. Assuming maybe an average of 10 lines worth of information stored per instruction frame we're going to be limited to around 100,000 instructions. I'm not married to this format, but for development purposes I think the libraries available for and readability of JSON will be ideal. I can always come back and create a different output format later.
+
+So here's the idea to begin with:
+
+```
+{
+    "frames": [
+        {
+            "INSTRUCTION_ADDRESS": ...,
+            "MNEUMONIC": ...,
+            "OPERANDS": ...,
+            "MEMORY": {
+                "READ": ...,
+                "WRITE": ...
+            }
+        },
+        ...
+    ]
+}
+```
+
+I can include register information as well, but let's see what we can make with just the instruction and memory information for now. We'll call this `AetherLog` format and give it a `.al` extension.
+
+Cool let's code this up and generate a `fib.al` file.
+
