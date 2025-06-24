@@ -38,7 +38,7 @@ mu.mem_map(STACK_END, STACK_MAX_SIZE * 2)
 mu.mem_map(END_OF_THE_LINE_ADDRESS, 0x2000)
 
 # Stack grows downward so start at the top
-mu.mem_write(STACK_START - 8, END_OF_THE_LINE_ADDRESS.to_bytes(8, 'little'))
+mu.mem_write(STACK_START - 0x8, END_OF_THE_LINE_ADDRESS.to_bytes(8, 'little'))
 mu.reg_write(UC_X86_REG_RSP, STACK_START - 0x8)
 # Write a recognizable value to caller RBP for debugging purposes
 mu.reg_write(UC_X86_REG_RBP, 0xDEADFED)
@@ -50,17 +50,17 @@ def hook_mem_access(uc, access, address, size, value, user_data):
 
 # For some god forsaken reason the memory is stored BEHIND the variable it references. In other words,
 # EBP points to the byte AFTER the value it references. 
-def read_64_as_str(uc: Uc, memory_addr):
+def read_64_as_be_str(uc: Uc, memory_addr):
     backwards_read = uc.mem_read(memory_addr, 8)
     backwards_hex = backwards_read.hex(' ')
-    return ' '.join(backwards_hex.split(' '))
+    return ' '.join(reversed(backwards_hex.split(' ')))
     
 
 def print_stack(uc):
-    print(f"STACK:")
+    print(f"STACK (Stored big endian for readability):")
     stack = {}
-    for address in range(STACK_START, STACK_START - 0x20, -8):
-        stack[address] = read_64_as_str(uc, address)
+    for address in range(STACK_START - 8, STACK_START - 0x20, -8):
+        stack[address + 0x8] = read_64_as_be_str(uc, address)
 
     for address, value in reversed(sorted(stack.items(), key=lambda a: a[0])):
         print(f"{hex(address)}: {value}")

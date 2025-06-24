@@ -95,11 +95,14 @@ It seems like no matter what I do I keep ending up with a memory error around th
 just running into orientation (reading up/down) errors. I just got to keep in mind while moving forward:
 
 1. The writes and reads are always forward looking. If I read (64 bit) at `0x100000` then I'm reading [`0x100000` - `0x100008`]
-2. The stack grows motherfucking downward. So a low stack value is the "top" of the stack. You can see how this could get confusing
-3. When a `pop` is run it first increments the pointer then reads. This is the logical deduction of (1) and (2). If it read first then it would be reading the value (logically) below it on the stack.
-4. When a `push` runs writes first then decrements.
-5. `ret` is equivalent to `pop RIP`. In other words it first increments `RSP` then reads `[RSP, RSP+8]` then sets the next instruction to that value.
-6. Everything is in little edian which is where the right most value is the most significant. THIS IS OPPOSITE OF HOW DECIMAL IS USUALLY NOTATED!!!
+2. The stack grows motherfucking downward. So a low stack value is the "top" of the stack. You can see how this could get confusing.
+3. When a `pop` is run it reads 8 bytes starting at `RSP` then increments `RSP` by 8. This is the logical deduction of (1) and (2). If it read first then it would be reading the value (logically) below it on the stack.
+4. When a `push` decrements by 8 first then writes.
+5. `ret` is equivalent to `pop RIP`. In other words it:
+    a. Reads `[RSP, RSP+8]`
+    b. Decrements `RSP` by 8
+    c. Sets the next instruction (`RIP`) to that value
+6. Everything is in little endian which is where the highest memory value is the most significant. THIS IS OPPOSITE OF HOW DECIMAL IS USUALLY NOTATED (assuming high memory addresses are to the right)!!!
 
 I'm going to memorize this shit as best I can and trace through it tomorrow. For now I need to go home and walk off this headache.
 
@@ -111,3 +114,11 @@ Okay today we're doing the thing!
 So in order to have `pop RIP` pop the address of EOTL then we need to have RSP equal to the address where EOTL is stored - 8 bytes based on the above rules. The instruction prior to the `ret` instruction which is giving me so many damn problems is `pop rbp` to restore the value of RBP back to where it was when the execution started. I really don't care what RBP is when we move the instruction pointer to the EOTL address so that doesn't really matter, but what does matter is I suspect that it's actually popping my EOTL address into the RBP pointer. To fix this I'm going to try to write my EOTL address above the stack (equivalent to calling `push rip` prior to function execution). To accomodate this I also need to make sure that RSP points the `STACK_BEGIN - 8` to stack off with so I don't end up overwriting my EOTL address. RBP shouldn't matter at the beginning (since the instructions at EOTL don't really use the stack), so I'll set it to a distinctive value for debugging purposes.
 
 Also I noticed an issue in how I'm logging reads. They're spaced in block with the subsequent instruction instead of the correct (previous) instruction that executes the read.
+
+Praise the lord! It works now! The only issue is I suspect my logging system is broken, or there's some sort of canceling offsets. I commited to git to make sure I don't lose my precious and now I'm working to make sure that there's no series of self-canceling bugs. I also fixed the logging error with the memory!
+
+Okay so I learned I was operating under false assumptions of what `RSP` actually points to. According to [this](https://cs.brown.edu/courses/csci0300/2021/notes/l08.html) `RSP` points to the last byte that is part of the current functions stack frame. I changed the above rules to reflect that fact.
+
+So for my logging convention I'm going to have:
+
+[highest memory address associated with that 8 byte chunk]: [8 bytes written in big endian because I find it easier to read]
