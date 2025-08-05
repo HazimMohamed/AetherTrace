@@ -4,3 +4,5 @@ venv/*
 *.iso
 *.dSYM
 .DS_STORE
+at-build
+exec

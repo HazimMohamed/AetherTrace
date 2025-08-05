@@ -152,3 +152,65 @@ I can include register information as well, but let's see what we can make with 
 
 Cool let's code this up and generate a `fib.al` file.
 
+07/30/25
+
+I've cleaned up the code above and made it into methods and also accept the filename as input argument. I also created a
+short proof of concept that plays a short jingle from the execution address of the current command. So the first 
+assembly instruction would be middle C. Then the next one would be middle D, etc. It turned out quite
+nice.
+
+However, to make this applicable to general programs, I have to support library linking. A process I know very little 
+about. Time for research!
+
+So when I write something like `#include <stdio>`. There's two ways it can go: static or dynamic.
+
+Static linking seems like the simpler of the two cases. The assembly code is simply copy and pasted together. I assume
+the usual function call boilerplate is used to glue the two strings of assembly together. Let's try and test this 
+assumption.
+
+Aug 3 2025
+
+It worked as far as the assembly, but I didn't have my entry point configured correctly so it didn't run. 
+
+More importantly I ran into a bit of a problem. I realized that Unicorn CANNOT emulate system calls. Seems really 
+obvious in retrospect, but anything "cool" like spawning multiple threads, writing/reading to HDD, etc is going to have
+to be hooked and emulated. I can do this, but it's not going to be easy AT ALL! What I think I should do is slightly
+pivot to doing pure algorithmic visualization. I can always build up later.
+
+So with that in mind, let's brainstorm some visualization methods and some algorithms that would go well together. 
+The quintessential example of this is sorting algorithms visualized. That's usually done by creating by either: 
+constructing a 1D space for ordinal and color to visualize size or a 2D space with 1 dimension corresponding to the 
+ordinal and the other to the size. 
+
+One technique I can imagine is just creating a grid representing the memory layout and making a video as the values in
+memories and registers change.
+
+Graphs are another cool option but I can't exactly think of a way to use them to represent what I have. 
+
+A complete model of computation would have to include a few different things (at least in some form or fashion):
+1. The instruction being executed at time step [0,t]. 
+2. The memory layout at time step t
+3. The register layout at time step t
+
+Another option is the AI route. AI's seem to be good at mapping non-visual data to some pretty pictures, but that route
+is its own can of worms. It will involve learning a lot of new concepts and spending a lot of time on boondoggles.
+
+I could also utilize both visual and auditory channels to send information. For example, I could make sounds to
+represent the instructions being executed and pictures to represent the reg/mem layout.
+
+What about a graph of which instruction led to which other instruction. It would look like mostly a line but every once 
+in a while there would be a loop. Functions that were used often would have strong connections to them.
+
+August 5 2025
+
+Okay I'm kind of disappointed by the lack of syscall support in the Unicorn library. I guess I didn't really think it 
+through but the good news is that I've found a library that works on top of Unicorn but also does emulation of syscalls
+and hopefully in a reasonably realistic way. I think the emulation of syscalls might not be enough to run any big
+programs like GUI software, but hopefully it will be accurate enough to run something like the `tar` command. 
+
+Actually that's a great idea for a example inputs the AetherTrace. The linux/mac terminal commands. They're 
+open-source, span a good range of complexity without being GUI based, are all written in c,
+and cover a wide variety of program types. I might struggle to have Qiling emulate the environments for them well enough
+that they work though.
+
+For now I'm going to start trying to port over my code to Qiling. Before I do that though it's important that I commit.

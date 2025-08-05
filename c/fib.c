@@ -1,3 +1,4 @@
+#include <stdio.h>
 
 // Function to compute the nth Fibonacci number
 int fibonacci(int n) {
@@ -20,5 +21,5 @@ int main() {
     int result = fibonacci(10);
 
     // Return it as exit code (0–255 range)
-    exit(0);
+    printf("%d\n", result);
 }
