@@ -6,3 +6,4 @@ venv/*
 .DS_STORE
 at-build
 exec
+*/__pycache__/

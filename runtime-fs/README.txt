@@ -1,0 +1,1 @@
+This direction is used for the emulated program's root file system.

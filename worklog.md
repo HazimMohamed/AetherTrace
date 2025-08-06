@@ -214,3 +214,46 @@ and cover a wide variety of program types. I might struggle to have Qiling emula
 that they work though.
 
 For now I'm going to start trying to port over my code to Qiling. Before I do that though it's important that I commit.
+
+----------
+
+Okay so good news and bad news. Good news: Qiling is so much better for this use case than barebones Unicorn. Bad news:
+Qiling does NOT support MachO files so I'm going to have to figure out a way to cross compile for linux then load it
+up into the emulator. Shouldn't be too hard of an issue. I can see two ways of doing this:
+
+1. Docker - spin up a handy dandy linux container and cross-compile
+2. A native cross compiler
+3. Compilation as a service elsewhere on the WWW
+
+I really don't want to do anything overly complicated for now so I think I'm going to go ahead with Docker, the simplest
+option for now and I can come back and revisit this to add portability and robustness.
+
+---------
+
+Okay well I realized that even on linux we dynamically link some bullshit everytime. Specifically glibc. According to
+Ms.GPT:
+
+```
+GCC is a C compiler, but also a glibc addict by default. It will link it by default, even if your code is just 
+int main() { return 0; }.
+```
+
+The good news is qiling comes with a demo rootfs that works pretty well. The only issue is that THE VERSIONS DON'T 
+MATCH! The example rootfs uses GLIBC_2.27. I don't really want to change the example root so I'll change the docker
+container version to cross-compile with the appropriate LIBC dependency. If that doesn't work I can try to hack the
+ELF file. 
+
+August 6
+
+So today I need to change my docker image to use GLIBC_2.27. According to Ms.GPT Ubuntu 18.04 will do the trick. I
+can either load the ubuntu image explicity or look for a gcc image that is based on an appropriate version of linux. 
+I think I will try the latter.
+
+-------
+
+It worked! Now I'm going to make it a little more streamlined!
+
+-------
+
+To make it more streamlined I tried to write a `compile.py` file where we automatically create the image if it doesn't
+exist, stand up the container and compile inside the container. Good tidy little thing! 
